@@ -32,6 +32,12 @@ import { CodeNode } from '@lexical/code';
 import { useEffect } from 'react';
 import { $getRoot, DecoratorNode } from 'lexical';
 import Prism from '@/lib/prism';
+import { HORIZONTAL_RULE } from '@/lib/horizontalRule';
+import {
+  HorizontalRuleNode,
+  $createHorizontalRuleNode,
+  $isHorizontalRuleNode,
+} from '@lexical/react/LexicalHorizontalRuleNode';
 
 interface Props {
   markdown: string;
@@ -86,6 +92,7 @@ export const MARKDOWN_TRANSFORMERS = [
   BOLD_ITALIC_UNDERSCORE,
   STRIKETHROUGH,
   INLINE_CODE,
+  HORIZONTAL_RULE, // Added before list transformers
   UNORDERED_LIST,
   ORDERED_LIST,
   QUOTE,
@@ -102,6 +109,7 @@ const initialConfig: InitialConfigType = {
     ListItemNode,
     CodeNode,
     PrismCodeHighlightNode,
+    HorizontalRuleNode, // Registered new node
   ],
   theme: {
     root: 'prose',
@@ -124,6 +132,7 @@ const initialConfig: InitialConfigType = {
     },
     quote: 'border-l-4 pl-3 italic text-gray-600',
     code: 'code-pre',
+    horizontalrule: 'my-6 border-t border-gray-300', // Added theme for <hr>
   },
   onError(error) {
     throw error;
