@@ -27,13 +27,53 @@ import { HeadingNode, QuoteNode } from '@lexical/rich-text';
 import { ListNode, ListItemNode } from '@lexical/list';
 import { CodeNode } from '@lexical/code';
 import { useEffect } from 'react';
-import { $getRoot } from 'lexical';
+import { $getRoot, DecoratorNode } from 'lexical';
+import Prism from '@/lib/prism';
 
 interface Props {
   markdown: string;
 }
 
-const MARKDOWN_TRANSFORMERS = [
+export class PrismCodeHighlightNode extends DecoratorNode<JSX.Element | null> {
+  static getType() {
+    return 'prism-code-highlight';
+  }
+
+  static clone(node: PrismCodeHighlightNode) {
+    return new PrismCodeHighlightNode(node.__key, node.__html);
+  }
+
+  static importJSON(json: any) {
+    return new PrismCodeHighlightNode();
+  }
+
+  createDOM() {
+    const wrapper = document.createElement('div');
+    wrapper.innerHTML = this.__html;
+    return wrapper;
+  }
+
+  updateDOM() {
+    return false;
+  }
+
+  decorate() {
+    return null;
+  }
+
+  exportJSON() {
+    return {
+      type: 'prism-code-highlight',
+      version: 1,
+    };
+  }
+
+  constructor(key?: string, private __html: string = '') {
+    super(key);
+  }
+}
+
+export const MARKDOWN_TRANSFORMERS = [
   HEADING,
   BOLD_STAR,
   BOLD_UNDERSCORE,
@@ -49,7 +89,14 @@ const MARKDOWN_TRANSFORMERS = [
 const initialConfig: InitialConfigType = {
   namespace: 'MarkdownViewer-CodeBlocks',
   editable: false,
-  nodes: [HeadingNode, QuoteNode, ListNode, ListItemNode, CodeNode],
+  nodes: [
+    HeadingNode,
+    QuoteNode,
+    ListNode,
+    ListItemNode,
+    CodeNode,
+    PrismCodeHighlightNode, // Register the custom node
+  ],
   theme: {
     root: 'prose',
     heading: {
@@ -68,33 +115,64 @@ const initialConfig: InitialConfigType = {
       listitem: 'my-1',
     },
     quote: 'border-l-4 pl-3 italic text-gray-600',
-    code: 'code-pre',  // Updated to target <pre>
+    code: 'code-pre',
   },
   onError(error) {
     throw error;
   },
 };
 
-export default function MarkdownViewer({ markdown }: Props) {
-  function AutoLoadPlugin() {
-    const [editor] = useLexicalComposerContext();
+function PrismHighlightPlugin() {
+  const [editor] = useLexicalComposerContext();
 
-    useEffect(() => {
+  useEffect(() => {
+    const highlightCodeBlocks = () => {
       editor.update(() => {
         const root = $getRoot();
-        root.clear();
-        $convertFromMarkdownString(
-          markdown,
-          MARKDOWN_TRANSFORMERS,
-          undefined,
-          true
-        );
+        root.getChildren().forEach((n) => {
+          if (n.getType() === 'code') {
+            const text = n.getTextContent();
+            const lang = (n as CodeNode).getLanguage() ?? 'text';
+            const html = Prism.highlight(
+              text,
+              Prism.languages[lang] || Prism.languages.text,
+              lang
+            );
+            const highlightedHtml = `<pre class="language-${lang}"><code>${html}</code></pre>`;
+            n.replace(new PrismCodeHighlightNode(undefined, highlightedHtml));
+          }
+        });
       });
-    }, [editor, markdown]);
+    };
 
-    return null;
-  }
+    const unregister = editor.registerUpdateListener(highlightCodeBlocks);
+    highlightCodeBlocks();
+    return () => unregister();
+  }, [editor]);
 
+  return null;
+}
+
+function AutoLoadPlugin({ markdown }: { markdown: string }) {
+  const [editor] = useLexicalComposerContext();
+
+  useEffect(() => {
+    editor.update(() => {
+      const root = $getRoot();
+      root.clear();
+      $convertFromMarkdownString(
+        markdown,
+        MARKDOWN_TRANSFORMERS,
+        undefined,
+        true
+      );
+    });
+  }, [editor, markdown]);
+
+  return null;
+}
+
+export default function MarkdownViewer({ markdown }: Props) {
   return (
     <LexicalComposer initialConfig={initialConfig}>
       <RichTextPlugin
@@ -104,7 +182,8 @@ export default function MarkdownViewer({ markdown }: Props) {
       />
       <HistoryPlugin />
       <OnChangePlugin onChange={() => {}} />
-      <AutoLoadPlugin />
+      <AutoLoadPlugin markdown={markdown} />
+      <PrismHighlightPlugin />
     </LexicalComposer>
   );
 }
