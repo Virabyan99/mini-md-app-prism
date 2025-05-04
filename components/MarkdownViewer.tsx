@@ -38,6 +38,8 @@ import {
   $createHorizontalRuleNode,
   $isHorizontalRuleNode,
 } from '@lexical/react/LexicalHorizontalRuleNode';
+import { FootnoteRefNode } from '@/components/FootnoteRefNode';
+import { FOOTNOTES } from '@/lib/footnoteTransformer';
 
 interface Props {
   markdown: string;
@@ -84,6 +86,7 @@ export class PrismCodeHighlightNode extends DecoratorNode<JSX.Element | null> {
 
 export const MARKDOWN_TRANSFORMERS = [
   HEADING,
+  FOOTNOTES, // Added before other inline transformers
   BOLD_STAR,
   BOLD_UNDERSCORE,
   ITALIC_STAR,
@@ -92,7 +95,7 @@ export const MARKDOWN_TRANSFORMERS = [
   BOLD_ITALIC_UNDERSCORE,
   STRIKETHROUGH,
   INLINE_CODE,
-  HORIZONTAL_RULE, // Added before list transformers
+  HORIZONTAL_RULE,
   UNORDERED_LIST,
   ORDERED_LIST,
   QUOTE,
@@ -109,7 +112,8 @@ const initialConfig: InitialConfigType = {
     ListItemNode,
     CodeNode,
     PrismCodeHighlightNode,
-    HorizontalRuleNode, // Registered new node
+    HorizontalRuleNode,
+    FootnoteRefNode, // Registered new node
   ],
   theme: {
     root: 'prose',
@@ -132,7 +136,8 @@ const initialConfig: InitialConfigType = {
     },
     quote: 'border-l-4 pl-3 italic text-gray-600',
     code: 'code-pre',
-    horizontalrule: 'my-6 border-t border-gray-300', // Added theme for <hr>
+    horizontalrule: 'my-6 border-t border-gray-300',
+    footnoteref: 'text-xs align-super cursor-help', // Added theme for footnotes
   },
   onError(error) {
     throw error;
