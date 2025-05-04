@@ -17,6 +17,9 @@ import {
   BOLD_UNDERSCORE,
   ITALIC_STAR,
   ITALIC_UNDERSCORE,
+  STRIKETHROUGH,
+  BOLD_ITALIC_STAR,
+  BOLD_ITALIC_UNDERSCORE,
   INLINE_CODE,
   UNORDERED_LIST,
   ORDERED_LIST,
@@ -79,6 +82,9 @@ export const MARKDOWN_TRANSFORMERS = [
   BOLD_UNDERSCORE,
   ITALIC_STAR,
   ITALIC_UNDERSCORE,
+  BOLD_ITALIC_STAR,
+  BOLD_ITALIC_UNDERSCORE,
+  STRIKETHROUGH,
   INLINE_CODE,
   UNORDERED_LIST,
   ORDERED_LIST,
@@ -95,7 +101,7 @@ const initialConfig: InitialConfigType = {
     ListNode,
     ListItemNode,
     CodeNode,
-    PrismCodeHighlightNode, // Register the custom node
+    PrismCodeHighlightNode,
   ],
   theme: {
     root: 'prose',
@@ -107,6 +113,8 @@ const initialConfig: InitialConfigType = {
     text: {
       bold: 'font-bold',
       italic: 'italic',
+      boldItalic: 'font-bold italic',
+      strikethrough: 'line-through',
       code: 'font-mono bg-gray-100 rounded px-1',
     },
     list: {
