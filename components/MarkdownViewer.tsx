@@ -25,12 +25,14 @@ import {
   ORDERED_LIST,
   QUOTE,
   CODE,
+  LINK,
 } from '@lexical/markdown';
 import { HeadingNode, QuoteNode } from '@lexical/rich-text';
 import { ListNode, ListItemNode } from '@lexical/list';
 import { CodeNode } from '@lexical/code';
-import { useEffect } from 'react';
-import { $getRoot, DecoratorNode } from 'lexical';
+import { LinkNode } from '@lexical/link';
+import { useEffect, useState } from 'react';
+import { $getRoot, DecoratorNode, type LexicalNode } from 'lexical';
 import Prism from '@/lib/prism';
 import { HORIZONTAL_RULE } from '@/lib/horizontalRule';
 import {
@@ -40,6 +42,7 @@ import {
 } from '@lexical/react/LexicalHorizontalRuleNode';
 import { FootnoteRefNode } from '@/components/FootnoteRefNode';
 import { FOOTNOTES } from '@/lib/footnoteTransformer';
+import { fetchLinkPreview } from '@/lib/fetchLinkPreview';
 
 interface Props {
   markdown: string;
@@ -84,9 +87,70 @@ export class PrismCodeHighlightNode extends DecoratorNode<JSX.Element | null> {
   }
 }
 
+export class LinkPreviewNode extends DecoratorNode<JSX.Element> {
+  __url: string;
+  __preview: { title: string; description: string; image: string } | null;
+
+  static getType() {
+    return 'link-preview';
+  }
+
+  static clone(node: LinkPreviewNode) {
+    return new LinkPreviewNode(node.__url, node.__preview, node.__key);
+  }
+
+  static importJSON(json: any) {
+    return new LinkPreviewNode(json.url, json.preview);
+  }
+
+  constructor(url: string, preview: { title: string; description: string; image: string } | null, key?: string) {
+    super(key);
+    this.__url = url;
+    this.__preview = preview;
+  }
+
+  createDOM() {
+    const a = document.createElement('a');
+    a.href = this.__url;
+    a.target = '_blank';
+    a.rel = 'noopener noreferrer';
+    return a;
+  }
+
+  updateDOM() {
+    return false;
+  }
+
+  decorate() {
+    return (
+      <div>
+        <a href={this.__url} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">
+          {this.__url}
+        </a>
+        {this.__preview && (
+          <div className="mt-1 p-2 border rounded bg-gray-50">
+            {this.__preview.image && <img src={this.__preview.image} alt="Preview" className="max-w-xs" />}
+            <p className="font-bold">{this.__preview.title}</p>
+            <p className="text-sm text-gray-600">{this.__preview.description}</p>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  exportJSON() {
+    return {
+      type: 'link-preview',
+      url: this.__url,
+      preview: this.__preview,
+      version: 1,
+    };
+  }
+}
+
 export const MARKDOWN_TRANSFORMERS = [
   HEADING,
-  FOOTNOTES, // Added before other inline transformers
+  FOOTNOTES,
   BOLD_STAR,
   BOLD_UNDERSCORE,
   ITALIC_STAR,
@@ -100,6 +164,7 @@ export const MARKDOWN_TRANSFORMERS = [
   ORDERED_LIST,
   QUOTE,
   CODE,
+  LINK,
 ];
 
 const initialConfig: InitialConfigType = {
@@ -113,7 +178,9 @@ const initialConfig: InitialConfigType = {
     CodeNode,
     PrismCodeHighlightNode,
     HorizontalRuleNode,
-    FootnoteRefNode, // Registered new node
+    FootnoteRefNode,
+    LinkNode,
+    LinkPreviewNode,
   ],
   theme: {
     root: 'prose',
@@ -137,7 +204,8 @@ const initialConfig: InitialConfigType = {
     quote: 'border-l-4 pl-3 italic text-gray-600',
     code: 'code-pre',
     horizontalrule: 'my-6 border-t border-gray-300',
-    footnoteref: 'text-xs align-super cursor-help', // Added theme for footnotes
+    footnoteref: 'text-xs align-super cursor-help',
+    link: 'text-blue-600 underline',
   },
   onError(error) {
     throw error;
@@ -175,6 +243,35 @@ function PrismHighlightPlugin() {
   return null;
 }
 
+function LinkPreviewPlugin() {
+  const [editor] = useLexicalComposerContext();
+
+  useEffect(() => {
+    const updateLinkPreviews = () => {
+      editor.update(() => {
+        const root = $getRoot();
+        root.getChildren().forEach((node: LexicalNode) => {
+          if (node.getType() === 'link') {
+            const url = (node as LinkNode).getURL();
+            fetchLinkPreview(url).then((preview) => {
+              editor.update(() => {
+                const previewNode = new LinkPreviewNode(url, preview || null);
+                node.replace(previewNode);
+              });
+            });
+          }
+        });
+      });
+    };
+
+    const unregister = editor.registerUpdateListener(updateLinkPreviews);
+    updateLinkPreviews();
+    return () => unregister();
+  }, [editor]);
+
+  return null;
+}
+
 function AutoLoadPlugin({ markdown }: { markdown: string }) {
   const [editor] = useLexicalComposerContext();
 
@@ -206,6 +303,7 @@ export default function MarkdownViewer({ markdown }: Props) {
       <OnChangePlugin onChange={() => {}} />
       <AutoLoadPlugin markdown={markdown} />
       <PrismHighlightPlugin />
+      <LinkPreviewPlugin />
     </LexicalComposer>
   );
 }
