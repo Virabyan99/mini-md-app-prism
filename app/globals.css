@@ -77,6 +77,15 @@
   border-radius: 0.25rem;
 }
 
+.img-wrap { position: relative; text-align: center; margin: 1rem auto; }
+.img { max-width: 100%; height: auto; display: inline-block; }
+.caption { font-size: .875rem; color: #555; margin-top: .25rem; }
+.overlay { position: absolute; top: .5rem; right: .5rem; display: flex; gap: .25rem; opacity: 0; transition: opacity .15s ease-in; }
+.img-wrap:hover .overlay { opacity: 1; }
+.overlay button { border: 1px solid #ccc; background: #fff; cursor: pointer; padding: .15rem .35rem; font-size: .75rem; }
+.lightbox { position: fixed; inset: 0; background: rgba(0,0,0,.8); display: flex; justify-content: center; align-items: center; }
+.lightbox img { max-width: 90vw; max-height: 90vh; }
+
 body {
   background: var(--background);
   color: var(--foreground);

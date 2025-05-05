@@ -31,18 +31,18 @@ import { HeadingNode, QuoteNode } from '@lexical/rich-text';
 import { ListNode, ListItemNode } from '@lexical/list';
 import { CodeNode } from '@lexical/code';
 import { LinkNode } from '@lexical/link';
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { $getRoot, DecoratorNode, type LexicalNode } from 'lexical';
 import Prism from '@/lib/prism';
 import { HORIZONTAL_RULE } from '@/lib/horizontalRule';
 import {
   HorizontalRuleNode,
-  $createHorizontalRuleNode,
-  $isHorizontalRuleNode,
 } from '@lexical/react/LexicalHorizontalRuleNode';
 import { FootnoteRefNode } from '@/components/FootnoteRefNode';
 import { FOOTNOTES } from '@/lib/footnoteTransformer';
 import { fetchLinkPreview } from '@/lib/fetchLinkPreview';
+import { ImageNode } from '@/components/ImageNode';
+import { IMAGE } from '@/lib/imageTransformer';
 
 interface Props {
   markdown: string;
@@ -150,6 +150,7 @@ export class LinkPreviewNode extends DecoratorNode<JSX.Element> {
 
 export const MARKDOWN_TRANSFORMERS = [
   HEADING,
+  IMAGE, // Added before other inline transformers
   FOOTNOTES,
   BOLD_STAR,
   BOLD_UNDERSCORE,
@@ -181,6 +182,7 @@ const initialConfig: InitialConfigType = {
     FootnoteRefNode,
     LinkNode,
     LinkPreviewNode,
+    ImageNode, // Registered new node
   ],
   theme: {
     root: 'prose',
@@ -206,6 +208,7 @@ const initialConfig: InitialConfigType = {
     horizontalrule: 'my-6 border-t border-gray-300',
     footnoteref: 'text-xs align-super cursor-help',
     link: 'text-blue-600 underline',
+    image: 'img', // Optional: add class for images if needed
   },
   onError(error) {
     throw error;
