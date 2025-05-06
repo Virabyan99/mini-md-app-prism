@@ -10,23 +10,27 @@ import { HistoryPlugin } from '@lexical/react/LexicalHistoryPlugin';
 import { OnChangePlugin } from '@lexical/react/LexicalOnChangePlugin';
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
 import { LexicalErrorBoundary } from '@lexical/react/LexicalErrorBoundary';
-import {
-  $createHeadingNode,
-  
-  HeadingNode,
-  QuoteNode,
-} from '@lexical/rich-text';
-import { $createQuoteNode } from '@lexical/rich-text';
-import { $createCodeNode, CodeNode } from '@lexical/code';
+import { HeadingNode, QuoteNode } from '@lexical/rich-text';
 import { ListNode, ListItemNode } from '@lexical/list';
+import { CodeNode } from '@lexical/code';
 import { LinkNode } from '@lexical/link';
 import { useEffect } from 'react';
-import { $createParagraphNode, $createTextNode, $getRoot, DecoratorNode, type LexicalNode } from 'lexical';
+import {
+  $getRoot,
+  DecoratorNode,
+  type LexicalNode,
+  $createParagraphNode,
+  $createTextNode,
+} from 'lexical';
+import { $createHeadingNode, $createQuoteNode } from '@lexical/rich-text';
+import { $createListNode, $createListItemNode } from '@lexical/list';
+import { $createCodeNode } from '@lexical/code';
+import { $createLinkNode } from '@lexical/link';
+import { $createHorizontalRuleNode, HorizontalRuleNode } from '@lexical/react/LexicalHorizontalRuleNode';
 import Prism from '@/lib/prism';
-import { HorizontalRuleNode } from '@lexical/react/LexicalHorizontalRuleNode';
-import { FootnoteRefNode } from '@/components/FootnoteRefNode';
 import { fetchLinkPreview } from '@/lib/fetchLinkPreview';
 import { ImageNode } from '@/components/ImageNode';
+import { FootnoteRefNode } from '@/components/FootnoteRefNode';
 import { remark } from 'remark';
 import gfm from 'remark-gfm';
 
@@ -34,6 +38,7 @@ interface Props {
   markdown: string;
 }
 
+// Define TableNode
 export class TableNode extends DecoratorNode<JSX.Element> {
   __tableData: { headers: string[], alignments: (string | null)[], rows: string[][] };
 
@@ -111,13 +116,8 @@ export class TableNode extends DecoratorNode<JSX.Element> {
   }
 }
 
-type TableData = {
-  headers: string[],
-  alignments: (string | null)[],
-  rows: string[][]
-};
-
-function extractTableData(tableNode: any): TableData {
+// Function to extract table data from remark AST
+function extractTableData(tableNode: any): { headers: string[], alignments: (string | null)[], rows: string[][] } {
   const headerRow = tableNode.children[0];
   const headers = headerRow.children.map((cell: any) => cell.children[0]?.value || '');
   const separatorRow = tableNode.children[1];
@@ -134,25 +134,57 @@ function extractTableData(tableNode: any): TableData {
   return { headers, alignments, rows };
 }
 
+// Helper function to create inline nodes
+function createInlineNodes(node: any): LexicalNode[] {
+  if (node.type === 'text') {
+    return [$createTextNode(node.value)];
+  } else if (node.type === 'strong') {
+    const textNode = $createTextNode(node.children[0].value);
+    textNode.setFormat('bold');
+    return [textNode];
+  } else if (node.type === 'emphasis') {
+    const textNode = $createTextNode(node.children[0].value);
+    textNode.setFormat('italic');
+    return [textNode];
+  } else if (node.type === 'delete') {
+    const textNode = $createTextNode(node.children[0].value);
+    textNode.setFormat('strikethrough');
+    return [textNode];
+  } else if (node.type === 'inlineCode') {
+    const textNode = $createTextNode(node.value);
+    textNode.setFormat('code');
+    return [textNode];
+  } else if (node.type === 'link') {
+    const href = node.url;
+    const textNodes = node.children.flatMap(createInlineNodes);
+    const linkNode = $createLinkNode(href);
+    textNodes.forEach(node => linkNode.append(node));
+    return [linkNode];
+  } else {
+    return [];
+  }
+}
+
+// Helper function to create Lexical nodes from AST
 function createLexicalNodesFromAST(node: any): LexicalNode | null {
   switch (node.type) {
-    case 'heading':
-      const headingNode = $createHeadingNode(`h${node.depth}`);
-      node.children.forEach((child: any) => {
-        const inlineNodes = createInlineNodes(child);
-        inlineNodes.forEach((inlineNode) => headingNode.append(inlineNode));
-      });
-      return headingNode;
     case 'paragraph':
       const paragraphNode = $createParagraphNode();
       node.children.forEach((child: any) => {
         const inlineNodes = createInlineNodes(child);
-        inlineNodes.forEach((inlineNode) => paragraphNode.append(inlineNode));
+        inlineNodes.forEach(inlineNode => paragraphNode.append(inlineNode));
       });
       return paragraphNode;
-    case 'table':
-      const tableData = extractTableData(node);
-      return new TableNode(tableData);
+    case 'heading':
+      const headingLevel = node.depth;
+      const headingNode = $createHeadingNode(`h${headingLevel}`);
+      node.children.forEach((child: any) => {
+        const inlineNodes = createInlineNodes(child);
+        inlineNodes.forEach(inlineNode => headingNode.append(inlineNode));
+      });
+      return headingNode;
+    case 'thematicBreak':
+      return $createHorizontalRuleNode();
     case 'blockquote':
       const quoteNode = $createQuoteNode();
       node.children.forEach((child: any) => {
@@ -162,32 +194,34 @@ function createLexicalNodesFromAST(node: any): LexicalNode | null {
         }
       });
       return quoteNode;
+    case 'list':
+      const listType = node.ordered ? 'ordered' : 'bullet';
+      const listNode = $createListNode(listType);
+      node.children.forEach((item: any) => {
+        const listItemNode = $createListItemNode();
+        item.children.forEach((child: any) => {
+          const blockNode = createLexicalNodesFromAST(child);
+          if (blockNode) {
+            listItemNode.append(blockNode);
+          }
+        });
+        listNode.append(listItemNode);
+      });
+      return listNode;
     case 'code':
-      const codeNode = $createCodeNode(node.lang);
-      codeNode.append($createTextNode(node.value));
+      const codeNode = $createCodeNode(node.lang || '');
+      const textNode = $createTextNode(node.value);
+      codeNode.append(textNode);
       return codeNode;
+    case 'table':
+      const tableData = extractTableData(node);
+      return new TableNode(tableData);
     default:
       return null;
   }
 }
 
-function createInlineNodes(node: any): LexicalNode[] {
-  switch (node.type) {
-    case 'text':
-      return [$createTextNode(node.value)];
-    case 'strong':
-      const strongNode = $createTextNode(node.children[0].value);
-      strongNode.setFormat('bold');
-      return [strongNode];
-    case 'emphasis':
-      const italicNode = $createTextNode(node.children[0].value);
-      italicNode.setFormat('italic');
-      return [italicNode];
-    default:
-      return [];
-  }
-}
-
+// PrismCodeHighlightNode
 export class PrismCodeHighlightNode extends DecoratorNode<JSX.Element | null> {
   static getType() {
     return 'prism-code-highlight';
@@ -227,6 +261,7 @@ export class PrismCodeHighlightNode extends DecoratorNode<JSX.Element | null> {
   }
 }
 
+// LinkPreviewNode
 export class LinkPreviewNode extends DecoratorNode<JSX.Element> {
   __url: string;
   __preview: { title: string; description: string; image: string } | null;
@@ -288,6 +323,7 @@ export class LinkPreviewNode extends DecoratorNode<JSX.Element> {
   }
 }
 
+// Initial configuration
 const initialConfig: InitialConfigType = {
   namespace: 'MarkdownViewer-CodeBlocks',
   editable: false,
@@ -336,6 +372,7 @@ const initialConfig: InitialConfigType = {
   },
 };
 
+// PrismHighlightPlugin
 function PrismHighlightPlugin() {
   const [editor] = useLexicalComposerContext();
 
@@ -367,6 +404,7 @@ function PrismHighlightPlugin() {
   return null;
 }
 
+// LinkPreviewPlugin
 function LinkPreviewPlugin() {
   const [editor] = useLexicalComposerContext();
 
@@ -396,6 +434,7 @@ function LinkPreviewPlugin() {
   return null;
 }
 
+// AutoLoadPlugin (updated above)
 function AutoLoadPlugin({ markdown }: { markdown: string }) {
   const [editor] = useLexicalComposerContext();
 
