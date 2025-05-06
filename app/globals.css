@@ -20,6 +20,20 @@
   }
 }
 
+.table {
+  @apply border-collapse border border-gray-400 w-full my-4;
+}
+.table th {
+  @apply border border-gray-300 px-4 py-2 bg-gray-100;
+}
+.table td {
+  @apply border border-gray-300 px-4 py-2;
+}
+
+.table-container {
+  margin: 1rem 0;
+}
+
 .prose {
   @apply text-gray-800;
 }

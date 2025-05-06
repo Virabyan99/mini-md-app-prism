@@ -11,41 +11,181 @@ import { OnChangePlugin } from '@lexical/react/LexicalOnChangePlugin';
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
 import { LexicalErrorBoundary } from '@lexical/react/LexicalErrorBoundary';
 import {
-  $convertFromMarkdownString,
-  HEADING,
-  BOLD_STAR,
-  BOLD_UNDERSCORE,
-  ITALIC_STAR,
-  ITALIC_UNDERSCORE,
-  STRIKETHROUGH,
-  BOLD_ITALIC_STAR,
-  BOLD_ITALIC_UNDERSCORE,
-  INLINE_CODE,
-  UNORDERED_LIST,
-  ORDERED_LIST,
-  QUOTE,
-  CODE,
-  LINK,
-} from '@lexical/markdown';
-import { HeadingNode, QuoteNode } from '@lexical/rich-text';
+  $createHeadingNode,
+  
+  HeadingNode,
+  QuoteNode,
+} from '@lexical/rich-text';
+import { $createQuoteNode } from '@lexical/rich-text';
+import { $createCodeNode, CodeNode } from '@lexical/code';
 import { ListNode, ListItemNode } from '@lexical/list';
-import { CodeNode } from '@lexical/code';
 import { LinkNode } from '@lexical/link';
 import { useEffect } from 'react';
-import { $getRoot, DecoratorNode, type LexicalNode } from 'lexical';
+import { $createParagraphNode, $createTextNode, $getRoot, DecoratorNode, type LexicalNode } from 'lexical';
 import Prism from '@/lib/prism';
-import { HORIZONTAL_RULE } from '@/lib/horizontalRule';
-import {
-  HorizontalRuleNode,
-} from '@lexical/react/LexicalHorizontalRuleNode';
+import { HorizontalRuleNode } from '@lexical/react/LexicalHorizontalRuleNode';
 import { FootnoteRefNode } from '@/components/FootnoteRefNode';
-import { FOOTNOTES } from '@/lib/footnoteTransformer';
 import { fetchLinkPreview } from '@/lib/fetchLinkPreview';
 import { ImageNode } from '@/components/ImageNode';
-import { IMAGE } from '@/lib/imageTransformer';
+import { remark } from 'remark';
+import gfm from 'remark-gfm';
 
 interface Props {
   markdown: string;
+}
+
+export class TableNode extends DecoratorNode<JSX.Element> {
+  __tableData: { headers: string[], alignments: (string | null)[], rows: string[][] };
+
+  static getType() {
+    return 'table';
+  }
+
+  static clone(node: TableNode) {
+    return new TableNode(node.__tableData, node.__key);
+  }
+
+  static importJSON(json: any) {
+    return new TableNode(json.tableData);
+  }
+
+  constructor(tableData: { headers: string[], alignments: (string | null)[], rows: string[][] }, key?: string) {
+    super(key);
+    this.__tableData = tableData;
+  }
+
+  createDOM() {
+    const div = document.createElement('div');
+    div.className = 'table-container';
+    return div;
+  }
+
+  updateDOM() {
+    return false;
+  }
+
+  decorate() {
+    const { headers, alignments, rows } = this.__tableData;
+    return (
+      <div className="table-container">
+        <table className="table border-collapse border border-gray-400 w-full my-4">
+          <thead>
+            <tr>
+              {headers.map((header, i) => (
+                <th
+                  key={i}
+                  className="border border-gray-300 px-4 py-2 bg-gray-100"
+                  style={{ textAlign: alignments[i] || 'left' }}
+                >
+                  {header}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row, i) => (
+              <tr key={i}>
+                {row.map((cell, j) => (
+                  <td
+                    key={j}
+                    className="border border-gray-300 px-4 py-2"
+                    style={{ textAlign: alignments[j] || 'left' }}
+                  >
+                    {cell}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  }
+
+  exportJSON() {
+    return {
+      type: 'table',
+      tableData: this.__tableData,
+      version: 1,
+    };
+  }
+}
+
+type TableData = {
+  headers: string[],
+  alignments: (string | null)[],
+  rows: string[][]
+};
+
+function extractTableData(tableNode: any): TableData {
+  const headerRow = tableNode.children[0];
+  const headers = headerRow.children.map((cell: any) => cell.children[0]?.value || '');
+  const separatorRow = tableNode.children[1];
+  const alignments = separatorRow.children.map((cell: any) => {
+    const text = cell.children[0]?.value.trim() || '';
+    if (text.startsWith(':') && text.endsWith(':')) return 'center';
+    if (text.startsWith(':')) return 'left';
+    if (text.endsWith(':')) return 'right';
+    return null;
+  });
+  const rows = tableNode.children.slice(2).map((row: any) =>
+    row.children.map((cell: any) => cell.children[0]?.value || '')
+  );
+  return { headers, alignments, rows };
+}
+
+function createLexicalNodesFromAST(node: any): LexicalNode | null {
+  switch (node.type) {
+    case 'heading':
+      const headingNode = $createHeadingNode(`h${node.depth}`);
+      node.children.forEach((child: any) => {
+        const inlineNodes = createInlineNodes(child);
+        inlineNodes.forEach((inlineNode) => headingNode.append(inlineNode));
+      });
+      return headingNode;
+    case 'paragraph':
+      const paragraphNode = $createParagraphNode();
+      node.children.forEach((child: any) => {
+        const inlineNodes = createInlineNodes(child);
+        inlineNodes.forEach((inlineNode) => paragraphNode.append(inlineNode));
+      });
+      return paragraphNode;
+    case 'table':
+      const tableData = extractTableData(node);
+      return new TableNode(tableData);
+    case 'blockquote':
+      const quoteNode = $createQuoteNode();
+      node.children.forEach((child: any) => {
+        const blockNode = createLexicalNodesFromAST(child);
+        if (blockNode) {
+          quoteNode.append(blockNode);
+        }
+      });
+      return quoteNode;
+    case 'code':
+      const codeNode = $createCodeNode(node.lang);
+      codeNode.append($createTextNode(node.value));
+      return codeNode;
+    default:
+      return null;
+  }
+}
+
+function createInlineNodes(node: any): LexicalNode[] {
+  switch (node.type) {
+    case 'text':
+      return [$createTextNode(node.value)];
+    case 'strong':
+      const strongNode = $createTextNode(node.children[0].value);
+      strongNode.setFormat('bold');
+      return [strongNode];
+    case 'emphasis':
+      const italicNode = $createTextNode(node.children[0].value);
+      italicNode.setFormat('italic');
+      return [italicNode];
+    default:
+      return [];
+  }
 }
 
 export class PrismCodeHighlightNode extends DecoratorNode<JSX.Element | null> {
@@ -148,26 +288,6 @@ export class LinkPreviewNode extends DecoratorNode<JSX.Element> {
   }
 }
 
-export const MARKDOWN_TRANSFORMERS = [
-  HEADING,
-  IMAGE, // Added before other inline transformers
-  FOOTNOTES,
-  BOLD_STAR,
-  BOLD_UNDERSCORE,
-  ITALIC_STAR,
-  ITALIC_UNDERSCORE,
-  BOLD_ITALIC_STAR,
-  BOLD_ITALIC_UNDERSCORE,
-  STRIKETHROUGH,
-  INLINE_CODE,
-  HORIZONTAL_RULE,
-  UNORDERED_LIST,
-  ORDERED_LIST,
-  QUOTE,
-  CODE,
-  LINK,
-];
-
 const initialConfig: InitialConfigType = {
   namespace: 'MarkdownViewer-CodeBlocks',
   editable: false,
@@ -182,7 +302,8 @@ const initialConfig: InitialConfigType = {
     FootnoteRefNode,
     LinkNode,
     LinkPreviewNode,
-    ImageNode, // Registered new node
+    ImageNode,
+    TableNode,
   ],
   theme: {
     root: 'prose',
@@ -208,7 +329,7 @@ const initialConfig: InitialConfigType = {
     horizontalrule: 'my-6 border-t border-gray-300',
     footnoteref: 'text-xs align-super cursor-help',
     link: 'text-blue-600 underline',
-    image: 'img', // Optional: add class for images if needed
+    image: 'img',
   },
   onError(error) {
     throw error;
@@ -279,15 +400,17 @@ function AutoLoadPlugin({ markdown }: { markdown: string }) {
   const [editor] = useLexicalComposerContext();
 
   useEffect(() => {
+    const processor = remark().use(gfm);
+    const ast = processor.parse(markdown);
     editor.update(() => {
       const root = $getRoot();
       root.clear();
-      $convertFromMarkdownString(
-        markdown,
-        MARKDOWN_TRANSFORMERS,
-        undefined,
-        true
-      );
+      ast.children.forEach((astNode: any) => {
+        const lexicalNode = createLexicalNodesFromAST(astNode);
+        if (lexicalNode) {
+          root.append(lexicalNode);
+        }
+      });
     });
   }, [editor, markdown]);
 
