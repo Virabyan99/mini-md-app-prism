@@ -136,3 +136,7 @@ body {
 .k-block, .k-block > .katex-display {
   overflow-x: auto;
 }
+
+.abc-wrap svg { max-width:100%; height:auto; }
+.abc-wrap path { stroke:#000; }
+.abcjs-inline-controls { font-size:.875rem; display:inline-flex; gap:.5rem; }

@@ -37,6 +37,7 @@ import math from 'remark-math';
 import { MermaidNode } from './MermaidNode';
 import MermaidTransform from './MermaidTransform';
 import { MathNode } from './MathNode';
+import { AbcNode } from './AbcNode';
 import katex from 'katex';
 
 interface Props {
@@ -227,6 +228,10 @@ function createLexicalNodesFromAST(node: any): LexicalNode | null {
         console.log('Creating block math node:', node.value);
         const mathNode = new MathNode(node.value.trim(), 'block');
         return mathNode;
+      } else if (node.lang === 'abc') {
+        console.log('Creating ABC node:', node.value);
+        const abcNode = new AbcNode(node.value.trim());
+        return abcNode;
       }
       const codeNode = $createCodeNode(node.lang || '');
       const textNode = $createTextNode(node.value);
@@ -384,6 +389,7 @@ const initialConfig: InitialConfigType = {
     TableNode,
     MermaidNode,
     MathNode,
+    AbcNode,
   ],
   theme: {
     root: 'prose',
