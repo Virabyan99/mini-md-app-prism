@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import 'prismjs/themes/prism-tomorrow.css';
+@import 'katex/dist/katex.min.css'; /* Added KaTeX CSS */
 
 :root {
   --background: #ffffff;
@@ -129,4 +130,9 @@ body {
   max-width: 100%;
   height: auto;
   margin: 0 auto;
+}
+
+/* Added custom styles for math rendering */
+.k-block, .k-block > .katex-display {
+  overflow-x: auto;
 }

@@ -14,7 +14,7 @@ import { HeadingNode, QuoteNode } from '@lexical/rich-text';
 import { ListNode, ListItemNode } from '@lexical/list';
 import { CodeNode } from '@lexical/code';
 import { LinkNode } from '@lexical/link';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import {
   $getRoot,
   DecoratorNode,
@@ -33,14 +33,16 @@ import { ImageNode } from '@/components/ImageNode';
 import { FootnoteRefNode } from '@/components/FootnoteRefNode';
 import { remark } from 'remark';
 import gfm from 'remark-gfm';
+import math from 'remark-math';
 import { MermaidNode } from './MermaidNode';
 import MermaidTransform from './MermaidTransform';
+import { MathNode } from './MathNode';
+import katex from 'katex';
 
 interface Props {
   markdown: string;
 }
 
-// Define TableNode
 export class TableNode extends DecoratorNode<JSX.Element> {
   __tableData: { headers: string[], alignments: (string | null)[], rows: string[][] };
 
@@ -118,7 +120,6 @@ export class TableNode extends DecoratorNode<JSX.Element> {
   }
 }
 
-// Function to extract table data from remark AST
 function extractTableData(tableNode: any): { headers: string[], alignments: (string | null)[], rows: string[][] } {
   const headerRow = tableNode.children[0];
   const headers = headerRow.children.map((cell: any) => cell.children[0]?.value || '');
@@ -136,10 +137,13 @@ function extractTableData(tableNode: any): { headers: string[], alignments: (str
   return { headers, alignments, rows };
 }
 
-// Helper function to create inline nodes
 function createInlineNodes(node: any): LexicalNode[] {
   if (node.type === 'text') {
     return [$createTextNode(node.value)];
+  } else if (node.type === 'inlineMath') {
+    console.log('Creating inline math node:', node.value);
+    const mathNode = new MathNode(node.value.trim(), 'inline');
+    return [mathNode];
   } else if (node.type === 'strong') {
     const textNode = $createTextNode(node.children[0].value);
     textNode.setFormat('bold');
@@ -167,7 +171,6 @@ function createInlineNodes(node: any): LexicalNode[] {
   }
 }
 
-// Helper function to create Lexical nodes from AST
 function createLexicalNodesFromAST(node: any): LexicalNode | null {
   switch (node.type) {
     case 'paragraph':
@@ -220,10 +223,19 @@ function createLexicalNodesFromAST(node: any): LexicalNode | null {
       });
       return listNode;
     case 'code':
+      if (node.lang === 'math') {
+        console.log('Creating block math node:', node.value);
+        const mathNode = new MathNode(node.value.trim(), 'block');
+        return mathNode;
+      }
       const codeNode = $createCodeNode(node.lang || '');
       const textNode = $createTextNode(node.value);
       codeNode.append(textNode);
       return codeNode;
+    case 'math':
+      console.log('Creating block math node:', node.value);
+      const mathNode = new MathNode(node.value.trim(), 'block');
+      return mathNode;
     case 'table':
       const tableData = extractTableData(node);
       return new TableNode(tableData);
@@ -232,7 +244,6 @@ function createLexicalNodesFromAST(node: any): LexicalNode | null {
   }
 }
 
-// PrismCodeHighlightNode
 export class PrismCodeHighlightNode extends DecoratorNode<JSX.Element | null> {
   static getType() {
     return 'prism-code-highlight';
@@ -272,7 +283,6 @@ export class PrismCodeHighlightNode extends DecoratorNode<JSX.Element | null> {
   }
 }
 
-// LinkPreviewNode
 export class LinkPreviewNode extends DecoratorNode<JSX.Element> {
   __url: string;
   __preview: { title: string; description: string; image: string } | null;
@@ -334,7 +344,28 @@ export class LinkPreviewNode extends DecoratorNode<JSX.Element> {
   }
 }
 
-// Initial configuration
+function MathRender({ latex, mode }: { latex: string; mode: 'inline' | 'block' }) {
+  const [html, setHtml] = useState<string>('');
+  const [err, setErr] = useState<string | null>(null);
+
+  useEffect(() => {
+    try {
+      const renderedHtml = katex.renderToString(latex, {
+        displayMode: mode === 'block',
+        throwOnError: false,
+        strict: 'ignore',
+      });
+      setHtml(renderedHtml);
+    } catch (e: any) {
+      setErr(e.message);
+    }
+  }, [latex, mode]);
+
+  if (err) return <code className="text-red-600">{err}</code>;
+  const Tag = mode === 'block' ? 'div' : 'span';
+  return <Tag className={mode === 'block' ? 'k-block my-4 text-center' : ''} dangerouslySetInnerHTML={{ __html: html }} />;
+}
+
 const initialConfig: InitialConfigType = {
   namespace: 'MarkdownViewer-CodeBlocks',
   editable: false,
@@ -352,6 +383,7 @@ const initialConfig: InitialConfigType = {
     ImageNode,
     TableNode,
     MermaidNode,
+    MathNode,
   ],
   theme: {
     root: 'prose',
@@ -384,7 +416,6 @@ const initialConfig: InitialConfigType = {
   },
 };
 
-// PrismHighlightPlugin
 function PrismHighlightPlugin() {
   const [editor] = useLexicalComposerContext();
 
@@ -416,7 +447,6 @@ function PrismHighlightPlugin() {
   return null;
 }
 
-// LinkPreviewPlugin
 function LinkPreviewPlugin() {
   const [editor] = useLexicalComposerContext();
 
@@ -446,13 +476,13 @@ function LinkPreviewPlugin() {
   return null;
 }
 
-// AutoLoadPlugin
 function AutoLoadPlugin({ markdown }: { markdown: string }) {
   const [editor] = useLexicalComposerContext();
 
   useEffect(() => {
-    const processor = remark().use(gfm);
+    const processor = remark().use(gfm).use(math);
     const ast = processor.parse(markdown);
+    console.log('Parsed AST:', JSON.stringify(ast, null, 2));
     editor.update(() => {
       const root = $getRoot();
       root.clear();
@@ -468,7 +498,6 @@ function AutoLoadPlugin({ markdown }: { markdown: string }) {
   return null;
 }
 
-// New component to wrap plugins
 function EditorPlugins({ markdown }: { markdown: string }) {
   return (
     <>

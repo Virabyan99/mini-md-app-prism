@@ -12,6 +12,7 @@
     "@lexical/react": "^0.31.0",
     "@types/prismjs": "^1.26.5",
     "dompurify": "^3.2.5",
+    "katex": "^0.16.22",
     "lexical": "^0.31.0",
     "mermaid": "^10.9.3",
     "next": "15.3.1",
@@ -23,6 +24,7 @@
     "rehype-sanitize": "^6.0.0",
     "remark": "^15.0.1",
     "remark-gfm": "^4.0.1",
+    "remark-math": "^6.0.0",
     "unist-util-visit": "^5.0.0"
   },
   "devDependencies": {
