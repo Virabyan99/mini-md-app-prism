@@ -17,10 +17,10 @@ import { LinkNode } from '@lexical/link';
 import { useEffect, useState } from 'react';
 import {
   $getRoot,
-  DecoratorNode,
   type LexicalNode,
   $createParagraphNode,
   $createTextNode,
+  DecoratorNode,
 } from 'lexical';
 import { $createHeadingNode, $createQuoteNode } from '@lexical/rich-text';
 import { $createListNode, $createListItemNode } from '@lexical/list';
@@ -38,104 +38,12 @@ import { MermaidNode } from './MermaidNode';
 import MermaidTransform from './MermaidTransform';
 import { MathNode } from './MathNode';
 import { AbcNode } from './AbcNode';
+import { TableNode } from './TableNode';
+import { extractTableData } from '@/lib/tableUtils';
 import katex from 'katex';
 
 interface Props {
   markdown: string;
-}
-
-export class TableNode extends DecoratorNode<JSX.Element> {
-  __tableData: { headers: string[], alignments: (string | null)[], rows: string[][] };
-
-  static getType() {
-    return 'table';
-  }
-
-  static clone(node: TableNode) {
-    return new TableNode(node.__tableData, node.__key);
-  }
-
-  static importJSON(json: any) {
-    return new TableNode(json.tableData);
-  }
-
-  constructor(tableData: { headers: string[], alignments: (string | null)[], rows: string[][] }, key?: string) {
-    super(key);
-    this.__tableData = tableData;
-  }
-
-  createDOM() {
-    const div = document.createElement('div');
-    div.className = 'table-container';
-    return div;
-  }
-
-  updateDOM() {
-    return false;
-  }
-
-  decorate() {
-    const { headers, alignments, rows } = this.__tableData;
-    return (
-      <div className="table-container">
-        <table className="table border-collapse border border-gray-400 w-full my-4">
-          <thead>
-            <tr>
-              {headers.map((header, i) => (
-                <th
-                  key={i}
-                  className="border border-gray-300 px-4 py-2 bg-gray-100"
-                  style={{ textAlign: alignments[i] || 'left' }}
-                >
-                  {header}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row, i) => (
-              <tr key={i}>
-                {row.map((cell, j) => (
-                  <td
-                    key={j}
-                    className="border border-gray-300 px-4 py-2"
-                    style={{ textAlign: alignments[j] || 'left' }}
-                  >
-                    {cell}
-                  </td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    );
-  }
-
-  exportJSON() {
-    return {
-      type: 'table',
-      tableData: this.__tableData,
-      version: 1,
-    };
-  }
-}
-
-function extractTableData(tableNode: any): { headers: string[], alignments: (string | null)[], rows: string[][] } {
-  const headerRow = tableNode.children[0];
-  const headers = headerRow.children.map((cell: any) => cell.children[0]?.value || '');
-  const separatorRow = tableNode.children[1];
-  const alignments = separatorRow.children.map((cell: any) => {
-    const text = cell.children[0]?.value.trim() || '';
-    if (text.startsWith(':') && text.endsWith(':')) return 'center';
-    if (text.startsWith(':')) return 'left';
-    if (text.endsWith(':')) return 'right';
-    return null;
-  });
-  const rows = tableNode.children.slice(2).map((row: any) =>
-    row.children.map((cell: any) => cell.children[0]?.value || '')
-  );
-  return { headers, alignments, rows };
 }
 
 function createInlineNodes(node: any): LexicalNode[] {
