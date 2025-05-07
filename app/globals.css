@@ -105,3 +105,22 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Task List Styles */
+.prose ul[data-list-type="check"] {
+  list-style: none;
+  padding-left: 0;
+  margin-left: 1.5rem;
+}
+
+.prose ul[data-list-type="check"] > li {
+  position: relative;
+  padding-left: 1.5rem;
+  line-height: 1.4;
+}
+
+.prose ul[data-list-type="check"] > li > input[type="checkbox"] {
+  position: absolute;
+  left: 0;
+  top: 0.15rem;
+}

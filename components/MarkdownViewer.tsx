@@ -195,10 +195,19 @@ function createLexicalNodesFromAST(node: any): LexicalNode | null {
       });
       return quoteNode;
     case 'list':
-      const listType = node.ordered ? 'ordered' : 'bullet';
+      const isOrdered = node.ordered;
+      const isTaskList = !isOrdered && node.children.every((item: any) => item.checked !== null);
+      const listType = isOrdered ? 'number' : isTaskList ? 'check' : 'bullet';
       const listNode = $createListNode(listType);
       node.children.forEach((item: any) => {
         const listItemNode = $createListItemNode();
+        if (isTaskList) {
+          listItemNode.setChecked(item.checked);
+        } else if (item.checked !== null) {
+          const symbol = item.checked ? '☑ ' : '☐ ';
+          const symbolNode = $createTextNode(symbol);
+          listItemNode.append(symbolNode);
+        }
         item.children.forEach((child: any) => {
           const blockNode = createLexicalNodesFromAST(child);
           if (blockNode) {
