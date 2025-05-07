@@ -33,6 +33,8 @@ import { ImageNode } from '@/components/ImageNode';
 import { FootnoteRefNode } from '@/components/FootnoteRefNode';
 import { remark } from 'remark';
 import gfm from 'remark-gfm';
+import { MermaidNode } from './MermaidNode';
+import MermaidTransform from './MermaidTransform';
 
 interface Props {
   markdown: string;
@@ -349,6 +351,7 @@ const initialConfig: InitialConfigType = {
     LinkPreviewNode,
     ImageNode,
     TableNode,
+    MermaidNode,
   ],
   theme: {
     root: 'prose',
@@ -443,7 +446,7 @@ function LinkPreviewPlugin() {
   return null;
 }
 
-// AutoLoadPlugin (updated above)
+// AutoLoadPlugin
 function AutoLoadPlugin({ markdown }: { markdown: string }) {
   const [editor] = useLexicalComposerContext();
 
@@ -465,6 +468,18 @@ function AutoLoadPlugin({ markdown }: { markdown: string }) {
   return null;
 }
 
+// New component to wrap plugins
+function EditorPlugins({ markdown }: { markdown: string }) {
+  return (
+    <>
+      <AutoLoadPlugin markdown={markdown} />
+      <PrismHighlightPlugin />
+      <LinkPreviewPlugin />
+      <MermaidTransform />
+    </>
+  );
+}
+
 export default function MarkdownViewer({ markdown }: Props) {
   return (
     <LexicalComposer initialConfig={initialConfig}>
@@ -475,9 +490,7 @@ export default function MarkdownViewer({ markdown }: Props) {
       />
       <HistoryPlugin />
       <OnChangePlugin onChange={() => {}} />
-      <AutoLoadPlugin markdown={markdown} />
-      <PrismHighlightPlugin />
-      <LinkPreviewPlugin />
+      <EditorPlugins markdown={markdown} />
     </LexicalComposer>
   );
 }

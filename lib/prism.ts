@@ -13,6 +13,7 @@ import 'prismjs/components/prism-bash';
 import 'prismjs/components/prism-powershell';
 import 'prismjs/components/prism-diff';
 import 'prismjs/components/prism-git';
+import 'prismjs/components/prism-mermaid';
 // import 'prismjs/components/prism-php';
 import 'prismjs/components/prism-python';
 import 'prismjs/components/prism-ruby';

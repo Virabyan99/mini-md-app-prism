@@ -124,3 +124,9 @@ body {
   left: 0;
   top: 0.15rem;
 }
+
+.mermaid-wrap svg {
+  max-width: 100%;
+  height: auto;
+  margin: 0 auto;
+}
