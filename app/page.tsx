@@ -1,7 +1,7 @@
 'use client';
 
 import MarkdownViewer from '@/components/MarkdownViewer';
-import { useCallback, useState, useEffect } from 'react';
+import { useCallback, useState, useEffect, useMemo } from 'react';
 
 type Document = {
   id: string;
@@ -52,6 +52,8 @@ export default function Home() {
     }
   }, [docs, activeTab]);
 
+  const activeDoc = useMemo(() => docs.find(doc => doc.id === activeTab), [docs, activeTab]);
+
   return (
     <main
       onDragOver={(e) => e.preventDefault()}
@@ -85,13 +87,13 @@ export default function Home() {
         </div>
       )}
       <div className="flex-grow grid place-items-center">
-        {docs.length > 0 && activeTab ? (
+        {activeDoc ? (
           <div className="w-full">
-            <MarkdownViewer markdown={docs.find(doc => doc.id === activeTab)!.markdown} />
+            <MarkdownViewer markdown={activeDoc.markdown} />
           </div>
         ) : (
-          <div className="border-2 border-dashed border-gray-400 p-16 rounded-xl text-center font-sans">
-            Drag *.md* files here
+          <div className="p-16 text-center">
+            <img src="/transparent_icon.png" alt="Drag and drop area" className="mx-auto" />
           </div>
         )}
       </div>
