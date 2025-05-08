@@ -59,7 +59,7 @@ export default function Home() {
     <main
       onDragOver={(e) => e.preventDefault()}
       onDrop={handleDrop}
-      className="min-h-screen  max-w-4xl mx-auto flex flex-col"
+      className="min-h-screen py-2 max-w-4xl mx-auto flex flex-col"
     >
       {docs.length > 0 && (
         <div className="flex overflow-x-auto gap-2 mb-4 border-b border-gray-400">
