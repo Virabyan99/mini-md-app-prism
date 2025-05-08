@@ -37,12 +37,12 @@ export default function Home() {
 
     setDocs(prev => {
       const updatedDocs = [...prev, ...newDocs];
-      if (!activeTab && updatedDocs.length > 0) {
-        setActiveTab(updatedDocs[0].id);
+      if (newDocs.length > 0) {
+        setActiveTab(newDocs[0].id); // Always set the first new file as active
       }
       return updatedDocs;
     });
-  }, [activeTab]);
+  }, []);
 
   useEffect(() => {
     if (docs.length === 0) {
