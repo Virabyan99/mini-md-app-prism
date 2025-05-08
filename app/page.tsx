@@ -15,12 +15,13 @@ export default function Home() {
 
   const handleDrop = useCallback(async (e: React.DragEvent) => {
     e.preventDefault();
-    const files = Array.from(e.dataTransfer.files).filter(file =>
-      file.name.toLowerCase().endsWith('.md')
-    );
+    const files = Array.from(e.dataTransfer.files).filter(file => {
+      const lowerCaseName = file.name.toLowerCase();
+      return lowerCaseName.endsWith('.md') || lowerCaseName.endsWith('.txt');
+    });
 
     if (files.length === 0) {
-      alert('Please drop .md files only');
+      alert('Please drop .md or .txt files only');
       return;
     }
 
